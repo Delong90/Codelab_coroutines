@@ -19,8 +19,11 @@ package com.example.android.kotlincoroutines.main
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.example.android.kotlincoroutines.util.BACKGROUND
 import com.example.android.kotlincoroutines.util.singleArgViewModelFactory
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /**
  * MainViewModel designed to store and manage UI-related data in a lifecycle conscious way. This
@@ -98,14 +101,25 @@ class MainViewModel(private val repository: TitleRepository) : ViewModel() {
     }
 
     /**
-     * Wait one second then update the tap count.
+     * Wait one second then display a snackbar.
      */
-    private fun updateTaps() {
-        // TODO: Convert updateTaps to use coroutines
-        tapCount++
-        BACKGROUND.submit {
-            Thread.sleep(1_000)
-            _taps.postValue("${tapCount} taps")
+//   1 viewModelScope. launchзапустит сопрограмму в viewModelScope. Это означает, что когда задание, которому мы передали,
+//   viewModelScopeбудет отменено, все сопрограммы в этом задании / области будут отменены. Если пользователь покинул Activity
+//   до delayвозврата, эта сопрограмма будет автоматически отменена при onClearedвызове после уничтожения ViewModel.
+//   2 Поскольку viewModelScopeпо умолчанию установлен диспетчер Dispatchers.Main, эта сопрограмма будет запущена в основном потоке.
+//   Позже мы увидим, как использовать разные потоки.
+//   3 Функция delayесть suspendфункция. В Android Studio это отображается 716807c07961aacd.pngзначком в левом желобе. Несмотря на то,
+//   что эта сопрограмма работает в основном потоке, delayне блокирует поток ни на секунду. Вместо этого диспетчер планирует возобновить
+//   сопрограмму через одну секунду при следующем операторе.
+    fun updateTaps() {
+        // launch a coroutine in viewModelScope
+        viewModelScope.launch {
+            tapCount++
+            // suspend this coroutine for one second
+            delay(1_000)
+            // resume in the main dispatcher
+            // _snackbar.value can be called directly from main thread
+            _taps.postValue("$tapCount taps")
         }
     }
 
